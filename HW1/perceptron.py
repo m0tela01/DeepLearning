@@ -27,11 +27,11 @@ def relu(x):
 def MSE(y, yHat, n=1):
     return (math.pow((y - yHat), 2) / n)
 
-dataset = np.random.choice([0, 1], size=(100,100), p=[0.8, 1-0.8])
+# dataset = np.random.choice([0, 1], size=(100,100), p=[0.8, 1-0.8])
 
-# sns.load_dataset(dataset)
-# sns.barplot(dataset)
+# # sns.load_dataset(dataset)
+# # sns.barplot(dataset)
+# # plt.show()
+
+# heatmap = sns.heatmap(dataset)
 # plt.show()
-
-heatmap = sns.heatmap(dataset)
-plt.show()
