@@ -27,6 +27,8 @@ def relu(x):
 def MSE(y, yHat, n=1):
     return (math.pow((y - yHat), 2) / n)
 
+def dMSE(y, yHat):
+    return (-(y - yHat))
 # dataset = np.random.choice([0, 1], size=(100,100), p=[0.8, 1-0.8])
 
 # # sns.load_dataset(dataset)
