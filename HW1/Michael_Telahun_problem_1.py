@@ -1,13 +1,9 @@
-import random
-import time
-import os
+# **************************#
+#* Michael Telahun * #
+#* CECS 590-01 * #
+#* Assignment 1 * #
+#************************* #
 import math
-import numpy as np
-import re
-import sys
-import pandas as pd
-import seaborn as sns
-from matplotlib import pyplot as plt
 
 def sigmoid(x):
     return (1 / (1 + math.exp(-x)))
@@ -26,6 +22,3 @@ def MSE(y, yHat, n=1):
 
 def dMSE(y, yHat):
     return (-(y - yHat))
-
-# heatmap = sns.heatmap(dataset)
-# plt.show()
