@@ -1,3 +1,4 @@
+import os
 import csv
 import time
 import requests
@@ -9,14 +10,15 @@ from selenium import webdriver
 class Scraper:
     def __init__(self, stockTicker=input("Enter the Stock Ticker to scrape for: ")):
         self.rootSite = 'https://seekingalpha.com/symbol/' + str(stockTicker)
-        self.dataStoreDir = "C:\\Users\\Telahun\\Documents\\School\\CECS590 - Deep Learning\\project_data\\scraped_stories"
+        self.dataStoreDir = "C:\\Users\\Telahun\\Documents\\School\\CECS590 - Deep Learning\\project_data\\scraped_stories\\"
         self.seekingAlpha = 'https://seekingalpha.com/symbol'
         self.response = requests.get(self.rootSite)
         self.scrollAmount = 500
         self.driver = webdriver.Chrome('C:\\Users\\Telahun\\Documents\\School\\CECS590 - Deep Learning\\DeepLearning\\text-summarization\\chromedriver.exe')
         self.driver.get(self.rootSite)
-        self.subDomain = 'https://seekingalpha.com/pr'
+        self.subDomain = 'https://seekingalpha.com/pr/'
         self.allLinks = []
+        self.csvLinks = []
         self.indexId = 1
         self.title = ''
         time.sleep(5)   ####### pause and do capctcha -- !!put a break point here!!
@@ -26,15 +28,15 @@ class Scraper:
 
     def scrollDown(self):
         self.scrollAmount += 500
-        driver.execute_script("window.scrollTo(0, "+ str(scrollAmount)+ ")")
+        self.driver.execute_script("window.scrollTo(0, "+ str(self.scrollAmount)+ ")")
 
     def openSwitch(self, link):
-        driver.execute_script("window.open('"+link+"', 'new_window')")
-        driver.switch_to_window(driver.window_handles[1])
+        self.driver.execute_script("window.open('"+link+"', 'new_window')")
+        self.driver.switch_to_window(self.driver.window_handles[1])
 
     def closeSwitch(self):
-        driver.close()
-        driver.switch_to_window(driver.window_handles[0])
+        self.driver.close()
+        self.driver.switch_to_window(self.driver.window_handles[0])
 
     def getToPressReleases(self):
         rightSideFeed = self.driver.find_element_by_css_selector('.feed.news')
@@ -48,75 +50,78 @@ class Scraper:
             pass
 
     def readLinksCsv(self):
-        with open("links.csv", 'a+') as linksCSV:
+        with open("links.csv", 'r') as linksCSV:
                 for row in linksCSV:
-                    self.allLinks.append(row.split()[1])
+                    if row is not '\n':
+                        self.allLinks.append(row.split(',')[1])
+                    
+                self.csvLinks = self.allLinks.copy()
+                if len(self.csvLinks) is not 0:
+                    self.indexId = len(self.csvLinks) + 1
+
     
-    def writeNewLinksCsv(self, newLinks):
-        with open("links.csv", 'a+') as linksCSV:
+    def writeNewLinksCsv(self, newLink):
+        with open("links.csv", 'a+', newline='') as linksCSV:
             writer = csv.writer(linksCSV, delimiter=',')
-            for i in range(0, len(newLinks)):
-                writer.writerow([self.indexId, newLinks[i], self.title]) #str(newLinks[i]).split(self.subDomain)[1]])
+            if newLink not in self.csvLinks:
+                writer.writerow([self.indexId, newLink, self.title]) #str(newLinks[i]).split(self.subDomain)[1]])
                 self.indexId += 1
 
     def writePressRelease(self, paragraphs):
-        with open(self.title + ".txt", 'w') as story:
+        with open(os.path.join(self.dataStoreDir, (self.title + ".txt")), 'w', encoding='utf-8') as story:
             for paragraph in paragraphs:
-                story.write(paragraph)
+                story.write(str(paragraph.text) + '\n')
 
     def scrapeData(self):
-        self.readLinksCsv()
-        while True:
-            ## need to reinitialize and test if everything is the same
-            rightSideFeed = self.driver.find_element_by_css_selector('.feed.news') ## this becomes stale
-            releases = rightSideFeed.find_element_by_class_name('press-releases')
-            releases = releases.find_elements_by_css_selector('.title.symbol_item [href]')
-            
-            previousLinkCount = len(self.allLinks)
-            currentLinkCount = len(self.allLinks)
+        try:
+            self.readLinksCsv()
 
-            newLinks = []
-            while previousLinkCount is currentLinkCount:
+            while True:            
                 previousLinkCount = len(self.allLinks)
-                self.scrollDown(scrollAmount)
+                currentLinkCount = len(self.allLinks)
+
                 newLinks = []
-                for ele in releases:
-                    link = ele.get_attribute('href')
-                    if link not in allLinks:
-                        self.allLinks.append(link)
-                        newLinks.append(link)
-                currentLinkCount = len(allLinks)
-            
-            # self.writeNewLinksCsv(newLinks)
+                while previousLinkCount is currentLinkCount:
+                    self.scrollDown()
+                    ## need to reinitialize and test if everything is the same
+                    rightSideFeed = self.driver.find_element_by_css_selector('.feed.news') ## this becomes stale
+                    releases = rightSideFeed.find_element_by_class_name('press-releases')
+                    releases = releases.find_elements_by_css_selector('.title.symbol_item [href]')
 
-            # links = [elem.get_attribute('href') for elem in releases]
-
-            # storesAccessible = len(releases)
-            for link in newLinks:
-                self.openSwitch(link)
-                soup = BeautifulSoup(driver.page_source)
-
-                ## article text
-                overlay = soup.find(id='page_content_wrapper').find(class_='container').find(class_='row')
-                mainc = overlay.find(id='main_content').find(id='pr-body')
-                ps = mainc.select('p')
+                    previousLinkCount = len(self.allLinks)
+                    newLinks = []
+                    for ele in releases:
+                        link = ele.get_attribute('href')
+                        if link not in self.csvLinks:
+                            self.allLinks.append(link)
+                            newLinks.append(link)
+                        else:
+                            continue
+                    currentLinkCount = len(self.allLinks)
                 
-                self.title = str(link).split(self.subDomain)[1]
-                self.writeNewLinksCsv([link])
 
-                self.writePressRelease(ps)
-                self.closeSwitch()
-                time.sleep(5)
+                for link in newLinks:
+                    if link not in self.csvLinks:
+                        self.openSwitch(link)
+                        soup = BeautifulSoup(self.driver.page_source)
 
-            ## scroll down and get more links
-            self.scrollDown()
+                        ## article text
+                        overlay = soup.find(id='page_content_wrapper').find(class_='container').find(class_='row')
+                        mainc = overlay.find(id='main_content').find(id='pr-body')
+                        ps = mainc.select('p')
+                        
+                        self.title = str(link).split(self.subDomain)[1]
+                        self.writeNewLinksCsv(link)
+                        self.csvLinks.append(link)
 
-# def getTicker():
-#     ticker = ''
-#     while ticker is '':
-#         ticker = input("Enter the Stock Ticker to scrape for: ")
-#     return ticker
+                        self.writePressRelease(ps)
+                        self.closeSwitch()
+                        time.sleep(5)
 
+                ## scroll down and get more links
+                self.scrollDown()
+        except:
+            scrapeData()   ####### pause and do capctcha -- !!put a break point here!!
 
 def main():
     scrapper = Scraper()
