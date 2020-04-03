@@ -9,26 +9,32 @@ from selenium import webdriver
 
 class Scraper:
     def __init__(self, stockTicker=input("Enter the Stock Ticker to scrape for: ")):
-        self.rootSite = 'https://seekingalpha.com/symbol/' + str(stockTicker)
-        self.dataStoreDir = "C:\\Users\\Telahun\\Documents\\School\\CECS590 - Deep Learning\\project_data\\scraped_stories\\"
-        self.seekingAlpha = 'https://seekingalpha.com/symbol'
+        self.rootSite = 'https://www.barchart.com/stocks/quotes/' + str(stockTicker) + '/news'
+        self.dataStoreDir = "C:\\Users\\Telahun\\Documents\\School\\CECS590 - Deep Learning\\project_data\\scrape_text\\barchart\\" + str(stockTicker).lower() + "\\scraped_stories\\"
         self.response = requests.get(self.rootSite)
-        self.scrollAmount = 500
+        self.scrollAmount = 600
+        self.scrollCount = 0
         self.driver = webdriver.Chrome('C:\\Users\\Telahun\\Documents\\School\\CECS590 - Deep Learning\\DeepLearning\\text-summarization\\chromedriver.exe')
         self.driver.get(self.rootSite)
-        self.subDomain = 'https://seekingalpha.com/pr/'
+        self.subDomain = 'https://www.barchart.com/story/stocks/quotes/NVDA/news/'.lower()
         self.allLinks = []
         self.csvLinks = []
         self.indexId = 1
+        self.wd = os.getcwd() + '\\scrapes\\'
         self.title = ''
-        time.sleep(5)   ####### pause and do capctcha -- !!put a break point here!!
+        time.sleep(3)   ####### pause and do capctcha -- !!put a break point here!!
 
     def c(self, element):
         element.click()
 
     def scrollDown(self):
         self.scrollAmount += 500
+        self.scrollCount += 1
         self.driver.execute_script("window.scrollTo(0, "+ str(self.scrollAmount)+ ")")
+        if self.scrollCount % 3 is 0:
+            loadMore = self.driver.find_element_by_class_name('bc-load-more-stories-block')
+            self.c(loadMore)
+            time.sleep(2)
 
     def openSwitch(self, link):
         self.driver.execute_script("window.open('"+link+"', 'new_window')")
@@ -39,18 +45,12 @@ class Scraper:
         self.driver.switch_to_window(self.driver.window_handles[0])
 
     def getToPressReleases(self):
-        rightSideFeed = self.driver.find_element_by_css_selector('.feed.news')
-        dropdown = rightSideFeed.find_element_by_class_name('selector-title')
-        self.c(dropdown)
-        newsFeed = rightSideFeed.find_elements_by_class_name('feed-menu')[0]
-        pressRelease = newsFeed.find_element_by_class_name('press-release')
-        try:    ##if its already on press release then just pass -- should be an assert 
-            self.c(pressRelease)
-        except:
-            pass
+        stories = self.driver.find_element_by_class_name('stories-list')
+        return stories.find_elements_by_css_selector('.story.clearfix')
+
 
     def readLinksCsv(self):
-        with open("links.csv", 'r') as linksCSV:
+        with open(self.wd + "barchartLinks.csv", 'r') as linksCSV:
                 for row in linksCSV:
                     if row is not '\n':
                         self.allLinks.append(row.split(',')[1])
@@ -61,7 +61,7 @@ class Scraper:
 
     
     def writeNewLinksCsv(self, newLink):
-        with open("links.csv", 'a+', newline='') as linksCSV:
+        with open(self.wd + "barchartLinks.csv", 'a+', newline='') as linksCSV:
             writer = csv.writer(linksCSV, delimiter=',')
             if newLink not in self.csvLinks:
                 writer.writerow([self.indexId, newLink, self.title]) #str(newLinks[i]).split(self.subDomain)[1]])
@@ -81,17 +81,15 @@ class Scraper:
                 currentLinkCount = len(self.allLinks)
 
                 newLinks = []
-                while previousLinkCount is currentLinkCount:
+                while previousLinkCount == currentLinkCount:
                     self.scrollDown()
                     ## need to reinitialize and test if everything is the same
-                    rightSideFeed = self.driver.find_element_by_css_selector('.feed.news') ## this becomes stale
-                    releases = rightSideFeed.find_element_by_class_name('press-releases')
-                    releases = releases.find_elements_by_css_selector('.title.symbol_item [href]')
+                    releases = self.getToPressReleases() ## this becomes stale
 
                     previousLinkCount = len(self.allLinks)
                     newLinks = []
                     for ele in releases:
-                        link = ele.get_attribute('href')
+                        link = ele.find_element_by_class_name('story-link').get_attribute('href')
                         if link not in self.csvLinks:
                             self.allLinks.append(link)
                             newLinks.append(link)
@@ -103,29 +101,31 @@ class Scraper:
                 for link in newLinks:
                     if link not in self.csvLinks:
                         self.openSwitch(link)
+                        time.sleep(1)
+                        self.title = str(link).split(self.subDomain)[1].split('/')[1]
                         soup = BeautifulSoup(self.driver.page_source)
 
                         ## article text
-                        overlay = soup.find(id='page_content_wrapper').find(class_='container').find(class_='row')
-                        mainc = overlay.find(id='main_content').find(id='pr-body')
-                        ps = mainc.select('p')
+                        overlay = soup.find(class_='column-inner').find(class_='modal-inner').find(class_='article-content')
+                        ps = overlay.select('p')
                         
-                        self.title = str(link).split(self.subDomain)[1]
                         self.writeNewLinksCsv(link)
                         self.csvLinks.append(link)
 
                         self.writePressRelease(ps)
                         self.closeSwitch()
-                        time.sleep(5)
+                        time.sleep(3)
 
                 ## scroll down and get more links
                 self.scrollDown()
-        except:
-            scrapeData()   ####### pause and do capctcha -- !!put a break point here!!
+        except Exception as ex:
+            print('☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃')
+            print(ex)
+            self.scrapeData()   ####### pause and do capctcha -- !!put a break point here!!
 
 def main():
     scrapper = Scraper()
-    scrapper.getToPressReleases()   ####### pause and do capctcha -- !!put a break point here!!
+    _ = scrapper.getToPressReleases()   ####### pause and do capctcha -- !!put a break point here!!
     scrapper.scrapeData()
 
 
