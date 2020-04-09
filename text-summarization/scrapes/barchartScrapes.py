@@ -7,6 +7,8 @@ from csv import writer
 from bs4 import BeautifulSoup
 from selenium import webdriver
 
+##use dictionaries
+
 class Scraper:
     def __init__(self, stockTicker=input("Enter the Stock Ticker to scrape for: ")):
         self.rootSite = 'https://www.barchart.com/stocks/quotes/' + str(stockTicker) + '/news'
@@ -16,9 +18,9 @@ class Scraper:
         self.scrollCount = 0
         self.driver = webdriver.Chrome('C:\\Users\\Telahun\\Documents\\School\\CECS590 - Deep Learning\\DeepLearning\\text-summarization\\chromedriver.exe')
         self.driver.get(self.rootSite)
-        self.subDomain = 'https://www.barchart.com/story/stocks/quotes/NVDA/news/'.lower()
+        self.subDomain = ('https://www.barchart.com/story/stocks/quotes/' + str(stockTicker) + '/news/').lower()
         self.allLinks = []
-        self.csvLinks = []
+        self.csvLinks = {}
         self.indexId = 1
         self.wd = os.getcwd() + '\\scrapes\\'
         self.title = ''
@@ -53,9 +55,10 @@ class Scraper:
         with open(self.wd + "barchartLinks.csv", 'r') as linksCSV:
                 for row in linksCSV:
                     if row is not '\n':
-                        self.allLinks.append(row.split(',')[1])
+                        # self.allLinks.append(row.split(',')[1])
+                        self.csvLinks[row.split(',')[1]] = row.split(',')[0]
                     
-                self.csvLinks = self.allLinks.copy()
+                # self.csvLinks = self.allLinks.copy()
                 if len(self.csvLinks) is not 0:
                     self.indexId = len(self.csvLinks) + 1
 
@@ -68,6 +71,8 @@ class Scraper:
                 self.indexId += 1
 
     def writePressRelease(self, paragraphs):
+        if len(self.title) >= 240:
+            self.title = self.title[:220]
         with open(os.path.join(self.dataStoreDir, (self.title + ".txt")), 'w', encoding='utf-8') as story:
             for paragraph in paragraphs:
                 story.write(str(paragraph.text) + '\n')
@@ -77,12 +82,13 @@ class Scraper:
             self.readLinksCsv()
 
             while True:            
-                previousLinkCount = len(self.allLinks)
-                currentLinkCount = len(self.allLinks)
+                # previousLinkCount = len(self.allLinks)
+                # currentLinkCount = len(self.allLinks)
 
                 newLinks = []
-                while previousLinkCount == currentLinkCount:
+                while len(newLinks) == 0:
                     self.scrollDown()
+                    time.sleep(1)
                     ## need to reinitialize and test if everything is the same
                     releases = self.getToPressReleases() ## this becomes stale
 
@@ -91,36 +97,37 @@ class Scraper:
                     for ele in releases:
                         link = ele.find_element_by_class_name('story-link').get_attribute('href')
                         if link not in self.csvLinks:
-                            self.allLinks.append(link)
+                            # self.allLinks.append(link)
                             newLinks.append(link)
                         else:
                             continue
-                    currentLinkCount = len(self.allLinks)
+                    # currentLinkCount = len(self.allLinks)
                 
 
                 for link in newLinks:
-                    if link not in self.csvLinks:
+                    if 'barchart' in link:
                         self.openSwitch(link)
-                        time.sleep(1)
-                        self.title = str(link).split(self.subDomain)[1].split('/')[1]
+                        time.sleep(2)
                         soup = BeautifulSoup(self.driver.page_source)
+                        self.title = str(link).split(self.subDomain)[1].split('/')[1]
 
                         ## article text
                         overlay = soup.find(class_='column-inner').find(class_='modal-inner').find(class_='article-content')
                         ps = overlay.select('p')
-                        
-                        self.writeNewLinksCsv(link)
-                        self.csvLinks.append(link)
 
-                        self.writePressRelease(ps)
+                        self.writePressRelease(ps)                        
+                        self.writeNewLinksCsv(link)
+                        self.csvLinks[link] = self.indexId
+
                         self.closeSwitch()
-                        time.sleep(3)
+                        time.sleep(2)
 
                 ## scroll down and get more links
                 self.scrollDown()
         except Exception as ex:
             print('☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃☃')
             print(ex)
+            self.driver.switch_to_window(self.driver.window_handles[0])
             self.scrapeData()   ####### pause and do capctcha -- !!put a break point here!!
 
 def main():

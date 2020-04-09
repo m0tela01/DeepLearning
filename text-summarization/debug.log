@@ -1,0 +1,6 @@
+[0404/142134.277:ERROR:process_reader_win.cc(123)] NtOpenThread: {Access Denied} A process has requested access to an object, but has not been granted those access rights. (0xc0000022)
+[0404/142134.280:ERROR:exception_snapshot_win.cc(98)] thread ID 26756 not found in process
+[0404/142134.309:ERROR:process_reader_win.cc(123)] NtOpenThread: {Access Denied} A process has requested access to an object, but has not been granted those access rights. (0xc0000022)
+[0404/142134.309:ERROR:exception_snapshot_win.cc(98)] thread ID 31064 not found in process
+[0406/142423.949:ERROR:prune_crash_reports.cc(35)] PruneCrashReportDatabase: Failed to get pending reports
+[0406/144623.825:ERROR:prune_crash_reports.cc(35)] PruneCrashReportDatabase: Failed to get pending reports
